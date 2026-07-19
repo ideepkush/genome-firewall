@@ -4,11 +4,11 @@
 
 ### Team
 
-| | |
-|---|---|
-| **Ritika Agarwal** | University of Pennsylvania — MSE, Computer and Information Sciences |
-| **Deepak Kushwaha** | Naples, Italy — MSc Data Science |
-| **Hirak Jain** | Guru Gobind Singh Indraprastha University |
+| Member | Institution | Location |
+|---|---|---|
+| **Ritika Agarwal** | University of Pennsylvania — MSE, Computer and Information Sciences | Philadelphia, PA, USA |
+| **Deepak Kushwaha** | MSc Data Science | Naples, Italy |
+| **Hirak Jain** | Guru Gobind Singh Indraprastha University | Delhi, India |
 
 Built for the Hack-Nation Global AI Hackathon, Challenge 06 — Genome Firewall.
 
