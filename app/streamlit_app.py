@@ -352,71 +352,79 @@ with tab_predict:
                     )
                     render_disclaimer()
 
+        # Where AMRFinderPlus is unavailable the uploader cannot do anything, so it is
+        # presented as an environment fact rather than an error. Leading with a warning
+        # icon made a working app read as a broken one.
+        annotation_available = amrfinder.is_available()
+
+        st.markdown("**Or annotate your own assembly**")
+        if not annotation_available:
+            st.caption(
+                "Live annotation needs AMRFinderPlus, which installs through conda and "
+                "is unavailable on pip-only hosts such as Streamlit Community Cloud. "
+                "Upload is enabled wherever it is installed — locally, "
+                "`conda install -c bioconda ncbi-amrfinderplus`. The demo above runs "
+                "the same model on the same determinants, from a real annotation."
+            )
+
         uploaded = st.file_uploader(
             "Quality-checked assembled genome",
             type=["fasta", "fa", "fna"],
+            disabled=not annotation_available,
             help="One reconstructed genome. Sequencing, assembly and species "
                  "identification happen upstream of this tool.",
         )
 
-        if uploaded is not None:
-            if not amrfinder.is_available():
-                st.warning(
-                    "AMRFinderPlus is not installed, so this assembly cannot be "
-                    "annotated. Install with `conda install -c bioconda "
-                    "ncbi-amrfinderplus`.",
-                    icon="🔧",
+        if uploaded is not None and annotation_available:
+            # --organism is what enables point-mutation detection. S. aureus
+            # ciprofloxacin resistance is gyrA/grlA mutation rather than an
+            # acquired gene, so without it the real mechanism is invisible.
+            flag = amrfinder.organism_flag(species)
+            if flag is None:
+                st.info(
+                    f"{species.title()} has no AMRFinderPlus organism profile, so "
+                    "point mutations cannot be detected — only acquired genes. "
+                    "Absence of a mutation call is uninformative, not reassuring.",
+                    icon="ℹ️",
                 )
-            else:
-                # --organism is what enables point-mutation detection. S. aureus
-                # ciprofloxacin resistance is gyrA/grlA mutation rather than an
-                # acquired gene, so without it the real mechanism is invisible.
-                flag = amrfinder.organism_flag(species)
-                if flag is None:
+
+            with tempfile.TemporaryDirectory() as scratch:
+                tmp = Path(scratch) / uploaded.name
+                tmp.write_bytes(uploaded.getbuffer())
+                try:
+                    with st.spinner("Annotating with AMRFinderPlus…"):
+                        _, features, qc, hits = featurize_fasta(tmp, organism=flag)
+                except Exception as exc:
+                    st.error(f"Annotation failed: {exc}")
+                    st.stop()
+
+                if flags := qc.flags():
+                    st.warning("Assembly QC flags: " + ", ".join(flags), icon="⚠️")
+
+                if hits:
+                    st.success(
+                        f"{len(hits)} resistance determinants detected: "
+                        + ", ".join(sorted({h.gene_symbol for h in hits}))
+                    )
+                else:
                     st.info(
-                        f"{species.title()} has no AMRFinderPlus organism profile, so "
-                        "point mutations cannot be detected — only acquired genes. "
-                        "Absence of a mutation call is uninformative, not reassuring.",
-                        icon="ℹ️",
+                        "No resistance determinants detected. This is not the same "
+                        "as confirmed susceptibility — see the per-drug notes below."
                     )
 
-                with tempfile.TemporaryDirectory() as scratch:
-                    tmp = Path(scratch) / uploaded.name
-                    tmp.write_bytes(uploaded.getbuffer())
-                    try:
-                        with st.spinner("Annotating with AMRFinderPlus…"):
-                            _, features, qc, hits = featurize_fasta(tmp, organism=flag)
-                    except Exception as exc:
-                        st.error(f"Annotation failed: {exc}")
-                        st.stop()
+                predictions = panel.predict_genome(features)
+                st.subheader("Antibiotic-response report")
+                for pred in predictions:
+                    render_prediction(pred)
 
-                    if flags := qc.flags():
-                        st.warning("Assembly QC flags: " + ", ".join(flags), icon="⚠️")
-
-                    if hits:
-                        st.success(
-                            f"{len(hits)} resistance determinants detected: "
-                            + ", ".join(sorted({h.gene_symbol for h in hits}))
-                        )
-                    else:
-                        st.info(
-                            "No resistance determinants detected. This is not the same "
-                            "as confirmed susceptibility — see the per-drug notes below."
-                        )
-
-                    predictions = panel.predict_genome(features)
-                    st.subheader("Antibiotic-response report")
-                    for pred in predictions:
-                        render_prediction(pred)
-
-                    report = pd.DataFrame([p.to_dict() for p in predictions])
-                    st.download_button(
-                        "Download report (CSV)",
-                        report.to_csv(index=False).encode(),
-                        file_name=f"{Path(uploaded.name).stem}_antibiotic_report.csv",
-                        mime="text/csv",
-                    )
-                    render_disclaimer()
+                report = pd.DataFrame([p.to_dict() for p in predictions])
+                st.download_button(
+                    "Download report (CSV)",
+                    report.to_csv(index=False).encode(),
+                    file_name=f"{Path(uploaded.name).stem}_antibiotic_report.csv",
+                    mime="text/csv",
+                )
+                render_disclaimer()
 
 # ─────────────────────────────────────────────────────────── validation
 
