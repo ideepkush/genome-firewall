@@ -428,9 +428,20 @@ with tab_validation:
                             "no_call_rate", "accuracy_on_called"] if c in metrics.columns]
         st.dataframe(metrics[show].round(3), use_container_width=True)
         st.caption(
-            "Recall is split by class because a high PR-AUC can coexist with poor "
-            "susceptible recall — which is exactly what happens for erythromycin and "
-            "ciprofloxacin here, where too few susceptible examples exist to learn from."
+            "Recall is split by class because the two errors are not equally costly. A "
+            "missed resistance sends a patient onto a drug that will fail; a missed "
+            "susceptibility only removes an option."
+        )
+        st.error(
+            "**Tetracycline recall on resistant isolates is 0.61.** Roughly four in ten "
+            "resistant isolates are not flagged — the unsafe direction of error, and the "
+            "one number in this panel that should stop you relying on it. Tetracycline "
+            "is only ~17–23% resistant in this cohort, and its resistance is split "
+            "across `tet(K)`, `tet(L)` and `tet(M)` with different mechanisms (efflux "
+            "versus ribosomal protection), so no single determinant covers it. The other "
+            "three drugs err the safe way: cefoxitin catches 97% of resistant isolates "
+            "and over-calls resistance instead.",
+            icon="🩸",
         )
 
         calib = ARTIFACTS / "calibration_per_drug.csv"
