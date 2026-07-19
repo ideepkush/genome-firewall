@@ -28,32 +28,45 @@ from src.predictor import GenomeFirewall
 from src.utils.clustering import cluster_from_feature_matrix, grouped_split, verify_no_leakage
 
 
-def load_inputs(args) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
+def load_inputs(args):
+    """Return (features, labels, clusters, split_or_None).
+
+    `split` is non-None only when the organizer pinned one. Their split is preferred
+    over anything we derive: it is what makes the reported score comparable between
+    teams rather than a product of each team's own choice of difficulty.
+    """
     if args.synthetic:
         from src.synthetic_data import generate_cohort
 
         print("Generating synthetic cohort (pipeline verification only)")
-        return generate_cohort(n_genomes=args.n_genomes, seed=args.seed)
+        features, labels, clusters = generate_cohort(n_genomes=args.n_genomes, seed=args.seed)
+        return features, labels, clusters, None
 
-    features = pd.read_parquet(args.features) if str(args.features).endswith(".parquet") \
-        else pd.read_csv(args.features, index_col=0)
-    labels = pd.read_csv(args.labels, index_col=0)
+    from src.data_loader import align, load_features, load_groups, load_labels, load_split
 
-    shared = features.index.intersection(labels.index)
-    if len(shared) == 0:
-        raise ValueError("No genome ids shared between the feature matrix and the label file")
-    print(f"Loaded {len(shared)} genomes with both features and labels")
-    features, labels = features.loc[shared], labels.loc[shared]
+    features = load_features(args.features, min_prevalence=args.min_prevalence)
+    print()
+    labels = load_labels(args.labels, lab_measured_only=not args.allow_predicted_labels)
+    print()
+    features, labels = align(features, labels)
 
     if args.clusters:
-        clusters = pd.read_csv(args.clusters, index_col=0).iloc[:, 0].reindex(shared)
-        print(f"Using provided genetic groups: {clusters.nunique()} clusters")
+        clusters = load_groups(args.clusters, index=features.index)
+        missing = clusters.isna()
+        if missing.any():
+            print(f"  {int(missing.sum()):,} genomes have no group; dropping them rather "
+                  f"than assigning each its own, which would silently defeat the "
+                  f"grouped split")
+            keep = clusters[~missing].index
+            features, labels, clusters = features.loc[keep], labels.loc[keep], clusters.loc[keep]
     else:
-        print("No cluster file given — clustering on resistance profile (weaker; prefer "
-              "the organizer's genetic groups when available)")
+        print("No genetic-group file given — falling back to clustering on the "
+              "resistance profile. This is weaker than the organizer's grouping; use "
+              "--clusters when it ships.")
         clusters = cluster_from_feature_matrix(features)
 
-    return features, labels, clusters
+    split = load_split(args.split, index=features.index) if args.split else None
+    return features, labels, clusters, split
 
 
 def main() -> None:
@@ -62,7 +75,17 @@ def main() -> None:
     parser.add_argument("--n-genomes", type=int, default=1200)
     parser.add_argument("--features", type=Path)
     parser.add_argument("--labels", type=Path)
-    parser.add_argument("--clusters", type=Path, help="genome_id -> cluster_id csv")
+    parser.add_argument("--clusters", type=Path, help="genome_id -> genetic group csv")
+    parser.add_argument("--split", type=Path,
+                        help="organizer's genome_id -> train/calibration/test csv; "
+                             "used verbatim instead of deriving our own")
+    parser.add_argument("--min-prevalence", type=int, default=3,
+                        help="drop determinants seen in fewer than this many genomes")
+    parser.add_argument("--allow-predicted-labels", action="store_true",
+                        help="keep computationally-predicted phenotypes. Off by default: "
+                             "training on predicted labels fits a model to another "
+                             "model's output and every metric stays healthy while "
+                             "meaning nothing.")
     parser.add_argument("--species", default="escherichia coli")
     parser.add_argument("--out", type=Path, default=Path("artifacts"))
     parser.add_argument("--C", type=float, default=0.1, help="inverse L1 regularization strength")
@@ -74,13 +97,24 @@ def main() -> None:
     if not args.synthetic and (args.features is None or args.labels is None):
         parser.error("--features and --labels are required unless --synthetic is set")
 
-    features, labels, clusters = load_inputs(args)
+    features, labels, clusters, given_split = load_inputs(args)
     print(f"\nCohort: {features.shape[0]} genomes x {features.shape[1]} features, "
           f"{labels.shape[1]} drugs, {clusters.nunique()} genetic clusters")
 
-    split = grouped_split(clusters, seed=args.seed)
+    if given_split is not None:
+        split = given_split
+        print("Using the organizer's split as given.")
+    else:
+        split = grouped_split(clusters, seed=args.seed)
+        print(f"Cluster-disjoint split: {split.summary()}")
     verify_no_leakage(split, clusters)
-    print(f"Cluster-disjoint split: {split.summary()}")
+
+    if not split.test:
+        raise SystemExit(
+            "The split has no test rows, so there is nothing to evaluate on. If the "
+            "test set is hidden, train with --split omitted to derive a local held-out "
+            "split for development, then submit predictions for the hidden set."
+        )
 
     X_train, y_train = features.loc[split.train], labels.loc[split.train]
     X_cal, y_cal = features.loc[split.calibration], labels.loc[split.calibration]

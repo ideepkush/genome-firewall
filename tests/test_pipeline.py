@@ -325,3 +325,112 @@ class TestPredictions:
         panel = GenomeFirewall(species="escherichia coli")
         with pytest.raises(RuntimeError, match="not fitted"):
             panel.predict_cohort(pd.DataFrame({"gene:x": [1]}))
+
+
+class TestRealDataLoader:
+    """The organizer's dataset arrives in shapes the synthetic generator never produces.
+
+    Each of these was a real failure found by running the pipeline against fixtures
+    built to match the challenge brief's Appendix.
+    """
+
+    @staticmethod
+    def _write(tmp_path, name, frame):
+        path = tmp_path / name
+        frame.to_csv(path, index=False)
+        return path
+
+    def test_long_format_pivots_to_a_genome_by_drug_matrix(self, tmp_path):
+        from src.data_loader import load_labels
+
+        frame = pd.DataFrame([
+            {"genome_id": "g1", "antibiotic": "ampicillin", "resistant_phenotype": "Resistant"},
+            {"genome_id": "g1", "antibiotic": "meropenem", "resistant_phenotype": "Susceptible"},
+            {"genome_id": "g2", "antibiotic": "ampicillin", "resistant_phenotype": "Susceptible"},
+        ])
+        labels = load_labels(self._write(tmp_path, "l.csv", frame), verbose=False)
+
+        assert labels.shape == (2, 2)
+        assert labels.loc["g1", "ampicillin"] == 1.0
+        assert labels.loc["g1", "meropenem"] == 0.0
+        assert np.isnan(labels.loc["g2", "meropenem"])  # pair absent -> untested
+
+    def test_intermediate_is_unlabelled_not_forced_into_a_class(self, tmp_path):
+        """The assay could not call it; collapsing it manufactures certainty."""
+        from src.data_loader import load_labels
+
+        frame = pd.DataFrame([
+            {"genome_id": "g1", "antibiotic": "ampicillin", "resistant_phenotype": "Intermediate"},
+            {"genome_id": "g2", "antibiotic": "ampicillin", "resistant_phenotype": "Resistant"},
+        ])
+        labels = load_labels(self._write(tmp_path, "l.csv", frame), verbose=False)
+
+        assert "g1" not in labels.index or np.isnan(labels.loc["g1", "ampicillin"])
+        assert labels.loc["g2", "ampicillin"] == 1.0
+
+    def test_computationally_predicted_rows_are_dropped_by_default(self, tmp_path):
+        """Training on predicted labels fits a model to another model's output.
+
+        Every metric stays healthy while meaning nothing, so this is refused unless
+        explicitly asked for.
+        """
+        from src.data_loader import load_labels
+
+        frame = pd.DataFrame([
+            {"genome_id": "g1", "antibiotic": "ampicillin",
+             "resistant_phenotype": "Resistant", "evidence": "Laboratory Method"},
+            {"genome_id": "g2", "antibiotic": "ampicillin",
+             "resistant_phenotype": "Resistant", "evidence": "Computational Method"},
+        ])
+        path = self._write(tmp_path, "l.csv", frame)
+
+        kept = load_labels(path, verbose=False)
+        assert list(kept.index) == ["g1"]
+
+        both = load_labels(path, lab_measured_only=False, verbose=False)
+        assert set(both.index) == {"g1", "g2"}
+
+    def test_conflicting_labels_are_dropped_not_guessed(self, tmp_path):
+        from src.data_loader import load_labels
+
+        frame = pd.DataFrame([
+            {"genome_id": "g1", "antibiotic": "ampicillin", "resistant_phenotype": "Resistant"},
+            {"genome_id": "g1", "antibiotic": "ampicillin", "resistant_phenotype": "Susceptible"},
+            {"genome_id": "g2", "antibiotic": "ampicillin", "resistant_phenotype": "Resistant"},
+        ])
+        labels = load_labels(self._write(tmp_path, "l.csv", frame), verbose=False)
+
+        assert "g1" not in labels.index or np.isnan(labels.loc["g1", "ampicillin"])
+        assert labels.loc["g2", "ampicillin"] == 1.0
+
+    def test_organizer_split_is_used_verbatim(self, tmp_path):
+        from src.data_loader import load_split
+
+        frame = pd.DataFrame({
+            "genome_id": ["g1", "g2", "g3", "g4"],
+            "split": ["train", "train", "calibration", "test"],
+        })
+        split = load_split(self._write(tmp_path, "s.csv", frame), verbose=False)
+
+        assert split.train == ["g1", "g2"]
+        assert split.calibration == ["g3"]
+        assert split.test == ["g4"]
+
+    def test_generalization_accepts_non_integer_group_ids(self, trained_panel):
+        """Organizer group ids are names, not integers.
+
+        Coercing them with int() crashed on every real grouping — "clade_8", "ST131",
+        any lineage label.
+        """
+        from src.decision_report import generalization_report
+
+        panel, features, labels, split = trained_panel
+        named = pd.Series(
+            [f"clade_{i % 4}" for i in range(len(split.test))], index=split.test
+        )
+        report = generalization_report(
+            panel, features.loc[split.test], labels.loc[split.test], named,
+            min_group_size=5,
+        )
+        if not report.empty:
+            assert report.index.get_level_values("cluster_id")[0].startswith("clade_")

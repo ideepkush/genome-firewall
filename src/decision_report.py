@@ -131,7 +131,10 @@ def generalization_report(
                 high=model.high,
             )
             record = metrics.to_dict()
-            record["cluster_id"] = int(cluster_id)
+            # Group ids are whatever the organizer used — "clade_8", "ST131", a lineage
+            # name. Only the locally derived clustering produces integers, so coercing
+            # to int crashed on every real grouping.
+            record["cluster_id"] = cluster_id
             records.append(record)
 
     if not records:

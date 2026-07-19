@@ -28,7 +28,7 @@ conda create -n amrfinder -c conda-forge -c bioconda ncbi-amrfinderplus -y
 conda run -n amrfinder amrfinder -u     # download the reference database
 
 python train.py --synthetic      # verify the pipeline end to end
-pytest tests/ -q                 # 29 tests
+pytest tests/ -q                 # 35 tests
 streamlit run app/streamlit_app.py
 ```
 
@@ -260,7 +260,7 @@ src/
     clustering.py       MinHash sketching, cluster splits, leakage check
     calibration.py      calibrators, metrics, reliability curves
 app/streamlit_app.py    the demo
-tests/test_pipeline.py  29 tests
+tests/test_pipeline.py  35 tests
 train.py                end-to-end pipeline
 ```
 
