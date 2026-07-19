@@ -570,3 +570,46 @@ class TestOrganismFlag:
         }
         unknown = set(ORGANISM_FLAGS.values()) - supported
         assert not unknown, f"not accepted by AMRFinderPlus {supported and ''}: {unknown}"
+
+
+class TestCuratedDeterminantEvidence:
+    """A curated determinant must read as a known mechanism, not a correlation.
+
+    The evidence check originally required the drug's `class:` rollup to be present. A
+    feature matrix built directly from AMRFinderPlus carries only gene:/point: names
+    and no class: features at all, so every genuine determinant was demoted to
+    "statistical association" — mecA for cefoxitin included, which is the single most
+    curated mechanism in S. aureus.
+    """
+
+    @pytest.fixture(scope="class")
+    def real_panel(self):
+        real = Path(__file__).resolve().parent.parent / "artifacts" / "genome_firewall.joblib"
+        if not real.exists():
+            pytest.skip("no trained panel")
+        return GenomeFirewall.load(real)
+
+    def _for(self, panel, drug, genome):
+        if drug not in panel.models:
+            pytest.skip(f"{drug} not trained")
+        return panel.predict_genome(genome)[list(panel.models).index(drug)]
+
+    def test_mecA_is_a_known_mechanism_without_any_class_feature(self, real_panel):
+        pred = self._for(real_panel, "cefoxitin", {"gene:mecA": 1})
+        assert pred.evidence_type == EVIDENCE_KNOWN_DETERMINANT, pred.evidence_type
+        assert any("mecA" in f for f in pred.supporting_features)
+
+    def test_erm_and_tet_are_known_mechanisms(self, real_panel):
+        for drug, gene in [("erythromycin", "gene:erm(C)"), ("tetracycline", "gene:tet(K)")]:
+            pred = self._for(real_panel, drug, {gene: 1})
+            assert pred.evidence_type == EVIDENCE_KNOWN_DETERMINANT, f"{drug}: {pred.evidence_type}"
+
+    def test_blaZ_is_not_a_cefoxitin_mechanism(self, real_panel):
+        """blaZ is a penicillinase; it leaves cephamycins intact.
+
+        It sits in 79% of this cohort and correlates with resistance without causing
+        it, so citing it as the reason for a cefoxitin failure would be wrong even
+        where the call itself is right.
+        """
+        pred = self._for(real_panel, "cefoxitin", {"gene:blaZ": 1})
+        assert not any("blaZ" in f for f in pred.supporting_features), pred.supporting_features

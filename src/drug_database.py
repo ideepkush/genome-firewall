@@ -45,6 +45,12 @@ class Drug:
     # do not line up, genuine determinants get downgraded to "statistical association"
     # and the report understates the evidence it actually has.
     amr_classes: frozenset[str] = frozenset()
+    # Curated determinant name stems that count as a known mechanism for this drug.
+    # The class rollup alone is not enough: a feature matrix built straight from
+    # AMRFinderPlus carries gene:/point: names with no class: features at all, and
+    # matching only on the rollup demotes every genuine determinant - mecA included -
+    # to "statistical association", understating the evidence the system actually has.
+    known_determinants: frozenset[str] = frozenset()
     # Species whose intrinsic biology makes this drug ineffective regardless of
     # acquired resistance genes.
     intrinsically_resistant: frozenset[str] = frozenset()
@@ -96,6 +102,7 @@ DRUGS: dict[str, Drug] = {
     ),
     "cefoxitin": Drug(
         name="Cefoxitin",
+        known_determinants=frozenset({"mecA", "mecC", "mecB", "mecD"}),
         drug_class="BETA-LACTAM",
         target="penicillin-binding proteins (cell wall synthesis)",
         # Cefoxitin is the laboratory surrogate for methicillin resistance in
@@ -108,6 +115,7 @@ DRUGS: dict[str, Drug] = {
     ),
     "ciprofloxacin": Drug(
         name="Ciprofloxacin",
+        known_determinants=frozenset({"gyrA_", "gyrB_", "grlA_", "grlB_", "parC_", "parE_", "qnr"}),
         drug_class="QUINOLONE",
         # In S. aureus the topoisomerase IV subunit is grlA/grlB (the parC/parE
         # homologue); resistance is usually stepwise point mutations in grlA then gyrA
@@ -117,6 +125,7 @@ DRUGS: dict[str, Drug] = {
     ),
     "erythromycin": Drug(
         name="Erythromycin",
+        known_determinants=frozenset({"erm(", "msr(", "mph(", "ere(", "lnu(", "vga("}),
         drug_class="MACROLIDE",
         target="23S rRNA of the 50S ribosomal subunit",
         # erm genes (ermA/ermB/ermC) methylate the ribosome and confer the MLSb
@@ -157,6 +166,7 @@ DRUGS: dict[str, Drug] = {
     ),
     "tetracycline": Drug(
         name="Tetracycline",
+        known_determinants=frozenset({"tet(K)", "tet(L)", "tet(M)", "tet(O)", "tet(S)", "tet(W)"}),
         drug_class="TETRACYCLINE",
         target="30S ribosomal subunit",
         amr_classes=frozenset({"TETRACYCLINE"}),

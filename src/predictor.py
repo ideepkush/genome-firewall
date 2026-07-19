@@ -156,9 +156,25 @@ class DrugModel:
         if self.drug is not None:
             class_tags = set(class_features_for_drug(self.drug))
             on_class = any(row.get(tag, 0) == 1 for tag in class_tags)
-            known = [f for f in active if f in class_tags or f.startswith(("gene:", "point:"))]
-            if known and on_class:
-                return EVIDENCE_KNOWN_DETERMINANT, known[:5]
+
+            # A determinant counts as a known mechanism if it is *named* in the drug's
+            # curated list, or if the class rollup for this drug is present. Requiring
+            # the rollup alone was wrong: a feature matrix built directly from
+            # AMRFinderPlus carries only gene:/point: names with no class: features, so
+            # every genuine determinant — mecA for cefoxitin included — was demoted to
+            # a bare statistical association, understating real evidence.
+            curated = []
+            for feature in active:
+                bare = feature.split(":", 1)[-1]
+                if any(bare.startswith(stem) for stem in self.drug.known_determinants):
+                    curated.append(feature)
+
+            if curated:
+                return EVIDENCE_KNOWN_DETERMINANT, curated[:5]
+            if on_class:
+                known = [f for f in active if f in class_tags or f.startswith(("gene:", "point:"))]
+                if known:
+                    return EVIDENCE_KNOWN_DETERMINANT, known[:5]
 
         return EVIDENCE_STATISTICAL, active[:5]
 
