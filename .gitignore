@@ -9,3 +9,6 @@ data/processed/*
 .ipynb_checkpoints/
 .pytest_cache/
 SUBMISSION.md
+GenomeFirewall-main/
+.pytest_cache/
+data/BVBRC_genome_amr.csv
