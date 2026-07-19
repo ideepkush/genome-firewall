@@ -23,6 +23,16 @@ standard laboratory susceptibility testing before it informs treatment.
 
 ---
 
+## Documentation
+
+| Document | Covers |
+|---|---|
+| [`docs/model_card.md`](docs/model_card.md) | Scope, metrics, limitations, intended use |
+| [`docs/feature_schema.md`](docs/feature_schema.md) | Module 01 output specification (v1.0.0) |
+| [`docs/thresholds.md`](docs/thresholds.md) | De-duplication threshold: how it was chosen |
+
+---
+
 ## Quickstart
 
 ```bash
