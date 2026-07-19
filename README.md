@@ -12,6 +12,8 @@
 
 Built for the Hack-Nation Global AI Hackathon, Challenge 06 — Genome Firewall.
 
+Licensed under the [MIT License](LICENSE).
+
 ---
 
 
