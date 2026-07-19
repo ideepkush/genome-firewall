@@ -51,7 +51,7 @@ pd.set_option("display.width", 140)
 pd.set_option("display.max_columns", 30)
 
 USE_SYNTHETIC = True
-SPECIES = "escherichia coli"
+SPECIES = "staphylococcus aureus"
 SEED = 42
 """),
     md("## 1. Load the cohort"),

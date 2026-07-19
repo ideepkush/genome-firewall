@@ -1,5 +1,10 @@
 # 🧬 Genome Firewall
 
+**Scope: *Staphylococcus aureus*, four antibiotics — cefoxitin, ciprofloxacin,
+erythromycin, tetracycline.** Cefoxitin is the laboratory surrogate for methicillin
+resistance, so a cefoxitin call is an MRSA call.
+
+
 Predicts which antibiotics are likely to fail from an assembled bacterial genome —
 before standard laboratory susceptibility results arrive.
 
@@ -50,7 +55,7 @@ python train.py \
   --features data/processed/features.parquet \
   --labels   data/raw/labels.csv \
   --clusters data/splits/genetic_groups.csv \
-  --species  "escherichia coli"
+  --species  "staphylococcus aureus"
 ```
 
 ---
@@ -62,7 +67,7 @@ assembled FASTA
       │
       ▼
 [01] Genome Reader ── AMRFinderPlus ──▶ binary determinant features
-      │                                  gene:blaCTX-M-15, point:gyrA_S83L, class:BETA-LACTAM
+      │                                  gene:mecA, point:gyrA_S84L, class:BETA-LACTAM
       ▼
 [02] Predictor ── target gate ──▶ L1 logistic regression ──▶ calibration
       │           (deterministic)      (one per drug)        (held-out split)
@@ -142,11 +147,11 @@ model's prior rather than evidence from *this* isolate, and the call is downgrad
 does not suppress genuine evidence-backed resistance.
 
 ```
-clean genome, no determinants          ESBL gene (blaCTX-M-15)
-Ampicillin      no-call                Ampicillin     likely to fail  ← gene:blaCTX-M-15
-Ceftriaxone     no-call                Ceftriaxone    likely to fail  ← gene:blaCTX-M-15
+clean genome, no determinants          mecA present (MRSA)
+Cefoxitin       no-call                Cefoxitin      likely to fail  ← gene:mecA
 Ciprofloxacin   no-call                Ciprofloxacin  no-call
-Meropenem       no-call                Meropenem      no-call
+Erythromycin    no-call                Erythromycin   no-call
+Tetracycline    no-call                Tetracycline   no-call
 ```
 
 ### Two schema bugs found by running the real tool

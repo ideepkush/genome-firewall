@@ -182,16 +182,22 @@ class TestEvidenceVocabulary:
         assert "class:SULFONAMIDE" in tags
         assert "class:TRIMETHOPRIM" in tags
 
-    def test_sulfonamide_gene_reads_as_a_known_mechanism(self, trained_panel):
+    def test_macrolide_gene_reads_as_a_known_mechanism(self, trained_panel):
+        """ermC is a curated erythromycin mechanism, not a bare correlation.
+
+        AMRFinderPlus spans several spellings for the MLSb classes; if the drug's
+        accepted tags miss the one the tool emits, a genuine determinant is demoted to
+        "statistical association" and the report understates its own evidence.
+        """
         panel, _, _, _ = trained_panel
-        drug = "trimethoprim-sulfamethoxazole"
+        drug = "erythromycin"
         if drug not in panel.models:
             pytest.skip(f"{drug} not trained in this sample")
 
-        predictions = panel.predict_genome({"gene:sul1": 1, "class:SULFONAMIDE": 1})
+        predictions = panel.predict_genome({"gene:ermC": 1, "class:MACROLIDE": 1})
         pred = predictions[list(panel.models).index(drug)]
         assert pred.evidence_type == EVIDENCE_KNOWN_DETERMINANT, (
-            f"sul1 should count as a known mechanism, got: {pred.evidence_type}"
+            f"ermC should count as a known mechanism, got: {pred.evidence_type}"
         )
 
 
@@ -291,18 +297,19 @@ class TestPredictions:
     def test_detected_determinant_still_drives_a_failure_call(self, trained_panel):
         """The downgrade must not suppress genuine evidence-backed resistance."""
         panel, _, _, _ = trained_panel
-        predictions = panel.predict_genome({"gene:blaCTX-M-15": 1, "class:BETA-LACTAM": 1})
+        predictions = panel.predict_genome({"gene:mecA": 1, "class:BETA-LACTAM": 1})
 
-        beta_lactams = [p for p in predictions if p.drug.lower() in {"ampicillin", "ceftriaxone"}]
-        assert any(p.decision == LIKELY_TO_FAIL for p in beta_lactams), (
-            "an ESBL gene should still produce a failure call for beta-lactams"
+        # mecA encodes PBP2a — this is MRSA, and cefoxitin is how the laboratory calls it.
+        cefoxitin = [p for p in predictions if p.drug.lower() == "cefoxitin"]
+        assert any(p.decision == LIKELY_TO_FAIL for p in cefoxitin), (
+            "mecA should still produce a failure call for cefoxitin"
         )
-        for pred in beta_lactams:
+        for pred in cefoxitin:
             if pred.decision == LIKELY_TO_FAIL:
                 assert pred.supporting_features, "a failure call must cite its evidence"
 
     def test_intrinsic_gate_overrides_the_model(self):
-        panel = GenomeFirewall(species="klebsiella pneumoniae")
+        panel = GenomeFirewall(species="klebsiella pneumoniae")  # gate is species-generic
         features, labels, clusters = generate_cohort(n_genomes=300, n_clusters=12, seed=3)
         split = grouped_split(clusters, seed=3)
         panel.fit(features.loc[split.train], labels.loc[split.train])

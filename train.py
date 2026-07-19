@@ -3,7 +3,7 @@
     python train.py --synthetic                       # verify the pipeline runs
     python train.py --features data/processed/features.parquet \
                     --labels data/raw/labels.csv \
-                    --species "escherichia coli"      # real challenge dataset
+                    --species "staphylococcus aureus"  # real challenge dataset
 
 The split is always at the genetic-cluster level. A random row split on this kind of
 data reports a number that does not survive contact with a new isolate.
@@ -86,7 +86,7 @@ def main() -> None:
                              "training on predicted labels fits a model to another "
                              "model's output and every metric stays healthy while "
                              "meaning nothing.")
-    parser.add_argument("--species", default="escherichia coli")
+    parser.add_argument("--species", default="staphylococcus aureus")
     parser.add_argument("--out", type=Path, default=Path("artifacts"))
     parser.add_argument("--C", type=float, default=0.1, help="inverse L1 regularization strength")
     parser.add_argument("--low", type=float, default=0.35, help="below this -> likely to work")

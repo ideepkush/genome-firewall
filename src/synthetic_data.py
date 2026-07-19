@@ -16,29 +16,54 @@ import numpy as np
 import pandas as pd
 
 # Determinants named after real AMR genes so the evidence output reads sensibly.
+# Staphylococcus aureus resistance determinants.
+#
+# These are staphylococcal, not enterobacterial: no blaCTX-M, no qnr, no sul. Using an
+# E. coli gene pool here would train the model on determinants that do not occur in the
+# organism, and the resulting feature names would never match a real AMRFinderPlus report.
 GENE_POOL = {
-    "BETA-LACTAM": ["blaTEM-1", "blaCTX-M-15", "blaSHV-12", "blaOXA-48", "blaKPC-2", "blaNDM-1"],
-    "QUINOLONE": ["qnrS1", "qnrB19", "aac(6')-Ib-cr", "oqxA"],
-    "AMINOGLYCOSIDE": ["aac(3)-IIa", "aph(3'')-Ib", "aph(6)-Id", "armA"],
-    "TETRACYCLINE": ["tet(A)", "tet(B)", "tet(M)"],
-    "SULFONAMIDE": ["sul1", "sul2"],
-    "TRIMETHOPRIM": ["dfrA17", "dfrA1"],
-    "POLYMYXIN": ["mcr-1"],
+    "BETA-LACTAM": ["mecA", "mecC", "blaZ"],
+    "MACROLIDE": ["ermA", "ermB", "ermC", "msrA", "mphC"],
+    "TETRACYCLINE": ["tet(K)", "tet(L)", "tet(M)"],
+    "AMINOGLYCOSIDE": ["aac(6')-aph(2'')", "aph(3')-III", "ant(4')-Ia"],
+    "TRIMETHOPRIM": ["dfrG", "dfrK"],
+    "QUINOLONE": ["norA"],
 }
 
 POINT_POOL = {
-    "QUINOLONE": ["gyrA_S83L", "gyrA_D87N", "parC_S80I"],
-    "POLYMYXIN": ["pmrB_L10P"],
+    # S. aureus fluoroquinolone resistance is stepwise chromosomal mutation, not an
+    # acquired gene. Topoisomerase IV here is grlA/grlB — the parC/parE homologue — so
+    # the E. coli parC_S80I is the wrong name for this organism.
+    "QUINOLONE": ["gyrA_S84L", "gyrA_E88K", "grlA_S80F", "grlA_S80Y"],
 }
 
 # Which determinants actually drive resistance for each drug, and how strongly.
+#
+# The four challenge drugs. Two deliberate pieces of real biology are encoded here,
+# because they are exactly what a model should be able to recover:
+#
+#   * mecA (and mecC) drive cefoxitin. mecA encodes PBP2a, an alternative
+#     penicillin-binding protein with low beta-lactam affinity — this is MRSA, and
+#     cefoxitin is the surrogate the laboratory uses to call it.
+#   * blaZ does NOT drive cefoxitin. It is a penicillinase: it hydrolyses penicillin
+#     but leaves cephamycins intact. It is common in S. aureus, so it co-occurs with
+#     resistance without causing it — a genuine confounder, and the sort of thing that
+#     separates "known determinant" from "statistical association only".
 DRUG_MECHANISMS = {
-    "ampicillin": {"class": "BETA-LACTAM", "drivers": {"blaTEM-1": 0.92, "blaCTX-M-15": 0.95, "blaSHV-12": 0.88}},
-    "ceftriaxone": {"class": "BETA-LACTAM", "drivers": {"blaCTX-M-15": 0.94, "blaKPC-2": 0.90, "blaNDM-1": 0.96}},
-    "meropenem": {"class": "BETA-LACTAM", "drivers": {"blaKPC-2": 0.93, "blaNDM-1": 0.97, "blaOXA-48": 0.85}},
-    "ciprofloxacin": {"class": "QUINOLONE", "drivers": {"gyrA_S83L": 0.80, "gyrA_D87N": 0.75, "parC_S80I": 0.70, "qnrS1": 0.45}},
-    "gentamicin": {"class": "AMINOGLYCOSIDE", "drivers": {"aac(3)-IIa": 0.90, "armA": 0.96}},
-    "trimethoprim-sulfamethoxazole": {"class": "SULFONAMIDE", "drivers": {"sul1": 0.70, "sul2": 0.68, "dfrA17": 0.85}},
+    "cefoxitin": {"class": "BETA-LACTAM", "drivers": {"mecA": 0.97, "mecC": 0.93}},
+    "ciprofloxacin": {
+        "class": "QUINOLONE",
+        "drivers": {"gyrA_S84L": 0.82, "gyrA_E88K": 0.74, "grlA_S80F": 0.78,
+                    "grlA_S80Y": 0.71, "norA": 0.35},
+    },
+    "erythromycin": {
+        "class": "MACROLIDE",
+        "drivers": {"ermA": 0.93, "ermB": 0.90, "ermC": 0.92, "msrA": 0.76, "mphC": 0.55},
+    },
+    "tetracycline": {
+        "class": "TETRACYCLINE",
+        "drivers": {"tet(K)": 0.86, "tet(L)": 0.80, "tet(M)": 0.91},
+    },
 }
 
 

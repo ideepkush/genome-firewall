@@ -116,7 +116,7 @@ All three must share the same genome IDs as their index.
 """),
     code("""
 USE_SYNTHETIC = True
-SPECIES = "escherichia coli"
+SPECIES = "staphylococcus aureus"
 SEED = 42
 
 if USE_SYNTHETIC:

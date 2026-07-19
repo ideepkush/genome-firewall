@@ -94,11 +94,39 @@ DRUGS: dict[str, Drug] = {
         target="penicillin-binding proteins (cell wall synthesis)",
         amr_classes=frozenset({"BETA-LACTAM", "CARBAPENEM"}),
     ),
+    "cefoxitin": Drug(
+        name="Cefoxitin",
+        drug_class="BETA-LACTAM",
+        target="penicillin-binding proteins (cell wall synthesis)",
+        # Cefoxitin is the laboratory surrogate for methicillin resistance in
+        # S. aureus: it induces mecA expression more reliably than oxacillin, so a
+        # cefoxitin result is how MRSA is called in practice. The determinant is mecA
+        # (or mecC), which encodes PBP2a — an alternative penicillin-binding protein
+        # with low affinity for essentially every beta-lactam. AMRFinderPlus reports
+        # it under BETA-LACTAM with subclass METHICILLIN.
+        amr_classes=frozenset({"BETA-LACTAM", "METHICILLIN", "CEPHALOSPORIN"}),
+    ),
     "ciprofloxacin": Drug(
         name="Ciprofloxacin",
         drug_class="QUINOLONE",
-        target="DNA gyrase (gyrA/gyrB) and topoisomerase IV (parC/parE)",
+        # In S. aureus the topoisomerase IV subunit is grlA/grlB (the parC/parE
+        # homologue); resistance is usually stepwise point mutations in grlA then gyrA
+        # rather than an acquired gene.
+        target="DNA gyrase (gyrA/gyrB) and topoisomerase IV (grlA/grlB in S. aureus)",
         amr_classes=frozenset({"QUINOLONE", "FLUOROQUINOLONE"}),
+    ),
+    "erythromycin": Drug(
+        name="Erythromycin",
+        drug_class="MACROLIDE",
+        target="23S rRNA of the 50S ribosomal subunit",
+        # erm genes (ermA/ermB/ermC) methylate the ribosome and confer the MLSb
+        # phenotype — macrolide, lincosamide and streptogramin B together. msrA is an
+        # efflux pump giving macrolide resistance without lincosamide resistance.
+        # AMRFinderPlus spans several class spellings for these, so all are accepted.
+        amr_classes=frozenset({
+            "MACROLIDE", "LINCOSAMIDE", "STREPTOGRAMIN",
+            "MACROLIDE/LINCOSAMIDE/STREPTOGRAMIN", "ERYTHROMYCIN",
+        }),
     ),
     "levofloxacin": Drug(
         name="Levofloxacin",
