@@ -1,0 +1,62 @@
+{
+  "species": "Staphylococcus aureus",
+  "taxon_id": "1280",
+  "antibiotics": [
+    "cefoxitin",
+    "ciprofloxacin",
+    "erythromycin",
+    "tetracycline"
+  ],
+  "source_rows_all_taxa": 51209,
+  "source_genomes_all_taxa": 5877,
+  "scoped_source_rows": 12820,
+  "scoped_unique_genomes": 3950,
+  "resolved_genome_drug_records": 12001,
+  "usable_genome_drug_labels": 11666,
+  "conflicting_genome_drug_labels": 22,
+  "unlabeled_genome_drug_records": 313,
+  "drugs": {
+    "cefoxitin": {
+      "source_rows": 2327,
+      "genomes": 2150,
+      "usable_labels": 2078,
+      "resistant": 1308,
+      "susceptible": 770,
+      "resistant_rate": 0.629451,
+      "conflicts": 18,
+      "no_label": 54
+    },
+    "ciprofloxacin": {
+      "source_rows": 3655,
+      "genomes": 3323,
+      "usable_labels": 3245,
+      "resistant": 1381,
+      "susceptible": 1864,
+      "resistant_rate": 0.425578,
+      "conflicts": 2,
+      "no_label": 76
+    },
+    "erythromycin": {
+      "source_rows": 3573,
+      "genomes": 3418,
+      "usable_labels": 3351,
+      "resistant": 1452,
+      "susceptible": 1899,
+      "resistant_rate": 0.433303,
+      "conflicts": 2,
+      "no_label": 65
+    },
+    "tetracycline": {
+      "source_rows": 3265,
+      "genomes": 3110,
+      "usable_labels": 2992,
+      "resistant": 499,
+      "susceptible": 2493,
+      "resistant_rate": 0.166778,
+      "conflicts": 0,
+      "no_label": 118
+    }
+  },
+  "model_ready": false,
+  "model_blocker": "The supplied CSV contains laboratory phenotypes but no FASTA sequences, AMRFinderPlus genes/mutations, homology clusters, or molecular-target features."
+}
