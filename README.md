@@ -1,5 +1,20 @@
 # 🧬 Genome Firewall
 
+**🔗 Live demo:** https://genomefirewall-fn6vvubbx9k2lkn6guvdsr.streamlit.app/
+
+### Team
+
+| | |
+|---|---|
+| **Ritika Agarwal** | University of Pennsylvania — MSE, Computer and Information Sciences |
+| **Deepak Kushwaha** | Naples, Italy — MSc Data Science |
+| **Hirak Jain** | Guru Gobind Singh Indraprastha University |
+
+Built for the Hack-Nation Global AI Hackathon, Challenge 06 — Genome Firewall.
+
+---
+
+
 **Scope: *Staphylococcus aureus*, four antibiotics — cefoxitin, ciprofloxacin,
 erythromycin, tetracycline.** Cefoxitin is the laboratory surrogate for methicillin
 resistance, so a cefoxitin call is an MRSA call.
@@ -43,7 +58,7 @@ conda create -n amrfinder -c conda-forge -c bioconda ncbi-amrfinderplus -y
 conda run -n amrfinder amrfinder -u     # download the reference database
 
 python train.py --synthetic      # verify the pipeline end to end
-pytest tests/ -q                 # 35 tests
+pytest tests/ -q                 # 47 tests
 streamlit run app/streamlit_app.py
 ```
 
@@ -58,14 +73,10 @@ Verified against **AMRFinderPlus 4.2.7**, database **2026-05-15.1**, native arm6
 (clonal lineage structure, class imbalance, missing labels). It proves the pipeline runs
 correctly and **nothing about real-world performance**.
 
-Once the challenge dataset is available:
+Train on the real cohort (1,675 genomes, shipped in `data/real/`):
 
 ```bash
-python train.py \
-  --features data/processed/features.parquet \
-  --labels   data/raw/labels.csv \
-  --clusters data/splits/genetic_groups.csv \
-  --species  "staphylococcus aureus"
+python train_real.py
 ```
 
 ---
@@ -275,7 +286,7 @@ src/
     clustering.py       MinHash sketching, cluster splits, leakage check
     calibration.py      calibrators, metrics, reliability curves
 app/streamlit_app.py    the demo
-tests/test_pipeline.py  35 tests
+tests/test_pipeline.py  47 tests
 train.py                end-to-end pipeline
 ```
 
